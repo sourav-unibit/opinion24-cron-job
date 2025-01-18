@@ -1,0 +1,5 @@
+/.env
+/pm2.json
+/node_modules
+/logs
+/test
