@@ -1,2 +1,4 @@
+
 require("dotenv").config();
+require("./db/mysql/conn.mysql")
 require("./controllers/bits.controller")

@@ -9,6 +9,10 @@ exports.mysql = {
         eventStatus: {
             active: 1,
             close: 2
+        },
+        choose_option_id:{
+            yes:1,
+            no:1
         }
     }
 }
