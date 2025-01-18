@@ -12,7 +12,7 @@ exports.mysql = {
         },
         choose_option_id:{
             yes:1,
-            no:1
+            no:2
         }
     }
 }
