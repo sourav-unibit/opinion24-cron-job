@@ -16,3 +16,19 @@ exports.mysql = {
         }
     }
 }
+
+exports.mongodb={
+    treads:{
+        status:{
+            live:1,
+            complete:2,
+            cancel:3
+        },
+        bits:{
+            status:{
+                active:1,
+                inActive:2
+            }
+        }
+    }
+}
