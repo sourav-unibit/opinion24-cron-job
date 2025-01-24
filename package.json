@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "dateformat": "^5.0.3",
     "dotenv": "^16.4.7",
+    "fix-esm": "^1.0.1",
     "mongoose": "^8.9.5",
     "mysql2": "^3.12.0",
     "node-cron": "^3.0.3"

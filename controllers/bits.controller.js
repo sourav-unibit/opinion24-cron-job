@@ -2,17 +2,18 @@ const bitsDb = require("../db/mysql/bits.db")
 const dbConstant = require("../utils/dbConstant.utils")
 const constUtils = require("../utils/constant.utils");
 const tradesModel = require("../models/trades.model");
+const dateFormatModule=require("../modules/dateFormat.module")
 
 exports.matchBitsHandler = async () => {
     try {
-        const startTime=new Date()
+        console.log("group query start: ",dateFormatModule.getByFormat())
         const unMatchBitDbRes = await bitsDb.allUnMatch();
         if (unMatchBitDbRes.error) {
             return;
         }
-        const matchBits = getMatchBits(unMatchBitDbRes.data);
-        console.log((new Date()-startTime)/1000);
+        console.log("group query end: ",dateFormatModule.getByFormat())
         return;
+        const matchBits = getMatchBits(unMatchBitDbRes.data);
         if (!matchBits) {
             return;
         }
@@ -68,6 +69,7 @@ function mapOperationOfGetMatchBits(bitItem, getMap, setMap, matchEventInfo, isA
 }
 
 async function updateMatchBit(eventId, yesArr, noArr) {
+    console.log(`bitItem enter : ${dateFormatModule.getByFormat()}: `,eventId)
     let bitsPromise = [];
     let yesAmounts = [];
     let noAmounts = [];
@@ -88,12 +90,14 @@ async function updateMatchBit(eventId, yesArr, noArr) {
         bitsPromise.push(bitsDb.allMatches(eventId, dbConstant.mysql.bits.choose_option_id.no, noAmounts))
         bitsPromise.push(bitsDb.allMatches(eventId, dbConstant.mysql.bits.choose_option_id.yes, yesAmounts))
     }
-
+    console.log(`bitItem get : ${dateFormatModule.getByFormat()}: `,eventId)
     const bitsPromiseRes = await Promise.all(bitsPromise);
     let yesMap = new Map();
     let noMap = new Map();
     let newTrades = [];
     let matchBitIds = [];
+    // let bitItemOuterLen=0,bitItemOuterLen=1;
+    console.log(`bitItem get complete: ${dateFormatModule.getByFormat()}: `,eventId)
     for (let bitItemArr of bitsPromiseRes) {
         if(bitItemArr.error){
             continue;
@@ -115,8 +119,7 @@ async function updateMatchBit(eventId, yesArr, noArr) {
         return;
     }
 
-    console.log(matchBitIds)
-
+    console.log(`bitItem processing complete: ${dateFormatModule.getByFormat()}: `,eventId)
     // bitsDb.updateMatchIdsStatus(matchBitIds)
     // createTreads(newTrades);
 }
