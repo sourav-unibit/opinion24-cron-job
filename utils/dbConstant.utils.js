@@ -1,5 +1,5 @@
 exports.mysql = {
-    bits: {
+    bids: {
         status: {
             unMatch: 1,
             match: 2,
