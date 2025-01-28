@@ -119,3 +119,32 @@ exports.updateMatchIdsStatus = (bitIds) => {
 }
 
 
+exports.allMatchByLimitAndSkip = (eventId, optionId, amount, skip,limit) => {
+    return new Promise((resolve) => {
+        const status = dbConstant.mysql.bids.status.unMatch;
+        const sqlQuery = `SELECT id,user_id,user_name,user_pic,event_id,amount,choose_option_id,created_date FROM bids WHERE status=? AND event_id = ? AND choose_option_id=? AND amount = ? ORDER BY id asc LIMIT ? , ?`
+        connection.query(sqlQuery, [status, eventId, optionId, amount, skip,limit], (error, result) => {
+            if (error) {
+                log(error)
+                return resolve({
+                    error: true,
+                    message: error.message,
+                    data: amount
+                })
+            }
+            if (result.length === 0) {
+                return resolve({
+                    error: true,
+                    message: 'not bids found',
+                    data: amount
+                })
+            }
+            return resolve({
+                error: false,
+                message: "bids fetch successfully",
+                data: result
+            })
+        })
+    })
+}
+

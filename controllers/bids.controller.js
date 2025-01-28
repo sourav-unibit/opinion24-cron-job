@@ -13,16 +13,17 @@ exports.matchBidsHandler = async () => {
         }
         console.log("group query end: ", dateFormatModule.getByFormat())
         const matchBids = getMatchBids(unMatchBitDbRes.data);
-        console.log("matching bits end: ", dateFormatModule.getByFormat())
+        console.log("matching bits end: ", dateFormatModule.getByFormat());
         if (!matchBids) {
             return;
         }
         for (let key in matchBids) { //key means eventId
-            // console.log(key,matchBids[key].yes.sort((a,b)=>a.amount-b.amount) , matchBids[key].no.sort((a,b)=>b.amount-a.amount))
             if (matchBids[key].yes.length != matchBids[key].no.length) {
                 continue;
             }
+            if (key == '678a32b155766580508d0784' || key == '678a32b155766580508d0784') {
             updateMatchBit(key, matchBids[key].yes, matchBids[key].no)
+            }
         }
 
     } catch (error) {
@@ -61,11 +62,11 @@ function mapOperationOfGetMatchBids(bitItem, getMap, setMap, matchEventInfo, isA
         let action1Limit = 0;
         let action2Limit = 0;
         if (isExitBitAmount.totalCount < bitItem.total_count) {
-            action1Limit = isExitBitAmount.totalCount + 20;
+            action1Limit = isExitBitAmount.totalCount + 1;
             action2Limit = isExitBitAmount.totalCount;
         } else {
             action1Limit = bitItem.total_count
-            action2Limit = bitItem.total_count + 20;
+            action2Limit = bitItem.total_count + 1;
         }
         matchEventInfo[bitItem.event_id][action1].push({ amount: bitItem.amount, limit: action1Limit, chooseOptionId: bitItem.choose_option_id });
         matchEventInfo[bitItem.event_id][action2].push({ amount: isExitBitAmount.amount, limit: action2Limit, chooseOptionId: isExitBitAmount.chooseOptionId });
@@ -80,11 +81,14 @@ async function updateMatchBit(eventId, yesArr, noArr) {
     console.log(`updateMatchBit enter: ${eventId}`, dateFormatModule.getByFormat())
     let yesPromise = [];
     let noPromise = [];
+    let limitMap = new Map();
 
     for (let yesItem of yesArr) {
+        limitMap.set(JSON.stringify([yesItem.amount, yesItem.chooseOptionId]), yesItem.limit)
         yesPromise.push(bidsDb.allMatch(eventId, dbConstant.mysql.bids.choose_option_id.yes, yesItem.amount, yesItem.limit));
     }
     for (let noItem of noArr) {
+        limitMap.set(JSON.stringify([noItem.amount, noItem.chooseOptionId]), noItem.limit)
         noPromise.push(bidsDb.allMatch(eventId, dbConstant.mysql.bids.choose_option_id.no, noItem.amount, noItem.limit));
     }
     console.log(`bids get enter: ${eventId}`, dateFormatModule.getByFormat())
@@ -102,9 +106,9 @@ async function updateMatchBit(eventId, yesArr, noArr) {
         }
     }
     if (yesCount < noCount) {
-        matchingTrades(bidsPromiseRes[0], bidsPromiseRes[1])
+        matchingTrades(eventId, bidsPromiseRes[0], bidsPromiseRes[1], dbConstant.mysql.bids.choose_option_id.yes, dbConstant.mysql.bids.choose_option_id.no, limitMap)
     } else {
-        matchingTrades(bidsPromiseRes[1], bidsPromiseRes[0])
+        matchingTrades(eventId, bidsPromiseRes[1], bidsPromiseRes[0], dbConstant.mysql.bids.choose_option_id.no, dbConstant.mysql.bids.choose_option_id.yes, limitMap)
     }
     console.log(`bids processing complete: ${eventId}`, dateFormatModule.getByFormat())
     return;
@@ -112,7 +116,7 @@ async function updateMatchBit(eventId, yesArr, noArr) {
 
 function storeNewTrade(newTrades, eventId, yesObj, noObj) {
     const yesFilterObj = {
-        bitId: yesObj.id,
+        bidId: yesObj.id,
         userId: yesObj.user_id,
         userName: yesObj.user_name,
         userPic: yesObj.user_pic,
@@ -121,7 +125,7 @@ function storeNewTrade(newTrades, eventId, yesObj, noObj) {
         createdDate: yesObj.created_date,
     }
     const noFilterObj = {
-        bitId: noObj.id,
+        bidId: noObj.id,
         userId: noObj.user_id,
         userName: noObj.user_name,
         userPic: noObj.user_pic,
@@ -136,7 +140,7 @@ function storeNewTrade(newTrades, eventId, yesObj, noObj) {
     newTrades.push(newTread)
 }
 
-function mapSetForMatchingTrades(getMap, bitItem, matchBitIds,newTrades) {
+function mapGetForMatchingTrades(getMap, bitItem, matchBitIds, newTrades) {
     let getMapKey = 10 - bitItem.amount;
     let isBitExist = getMap.get(getMapKey);
     let existBitIndex = isBitExist ? isBitExist.findIndex((item) => item.user_id != bitItem.user_id) : -1
@@ -154,50 +158,108 @@ function mapSetForMatchingTrades(getMap, bitItem, matchBitIds,newTrades) {
 
 }
 
-function matchingTrades(setItems, getItems) {
+function mapSetForMatchingTrades(setMap, bitItem) {
+    const setMapKey = bitItem.amount;
+    let setData = [];
+    const isMapDataExist = setMap.get(setMapKey);
+    if (isMapDataExist) {
+        setData = isMapDataExist
+    }
+    setData.push(bitItem)
+    setMap.set(setMapKey, setData)
+}
+
+async function matchingTrades(eventId, setItems, getItems, setOption, getOption, limitMap) {
     let setMap = new Map();
-    let newTrades=[];
-    let matchBitIds=[]
+    let newTrades = [];
+    let matchBitIds = []
     for (let setItem of setItems) {
         if (!setItem.error) {
-            for(let bitItem of setItem.data){
+            for (let bitItem of setItem.data) {
                 mapSetForMatchingTrades(setMap, bitItem);
             }
         }
-        
+
     }
 
     for (let getItem of getItems) {
         if (!getItem.error) {
-            for(let bitItem of getItem.data){
-                mapSetForMatchingTrades(setMap, bitItem,matchBitIds,newTrades)
+            for (let bitItem of getItem.data) {
+                mapGetForMatchingTrades(setMap, bitItem, matchBitIds, newTrades)
             }
         }
     }
+    console.log(`before ${dateFormatModule.getByFormat()}:`, {matchBitIds:matchBitIds.length},{newTrades:newTrades.length})
+    await matchingToReamingBits(eventId, setMap, getOption, limitMap, matchBitIds, newTrades)
+    console.log(`after matchIds ${dateFormatModule.getByFormat()}: `, {matchBitIds:matchBitIds.length},{newTrades:newTrades.length})
+    return;
+
     if (matchBitIds.length === 0 || newTrades.length == 0) {
         return;
     }
-    // bidsDb.updateMatchIdsStatus(matchBitIds)
+
+
     // createTreads(newTrades);
+    // updateBidsByIds(matchBitIds);
 
 }
+
+async function matchingToReamingBits(eventId, setMap, getOption, limitMap, matchBitIds, newTrades) {
+    console.log("first----")
+    let extraGetItemPromise = []
+    for (let setMapItem of setMap) {
+        if (setMapItem[1].length === 0) {
+            setMap.delete(setMapItem[0]);
+            continue;
+        }
+        const limitMapKey = JSON.stringify([constUtils.key.eventTotalPoint - setMapItem[0], getOption]);
+        let skip = limitMap.get(limitMapKey)
+        if (!skip) {
+            continue;
+        }
+        limitMap.set(limitMapKey, skip + 100) // todo why two time go
+        extraGetItemPromise.push(bidsDb.allMatchByLimitAndSkip(eventId, getOption, constUtils.key.eventTotalPoint - setMapItem[0], skip, setMapItem[1].length + 100)) // 0 present key of amount 1 index unMatch obj array
+    }
+    if (extraGetItemPromise.length !== 0) {
+        const extraGetItems = await Promise.all(extraGetItemPromise);
+        for (let getItem of extraGetItems) {
+            if (getItem.error) {
+                setMap.delete(constUtils.key.eventTotalPoint - getItem.data)
+                continue;
+            }
+            for (let bitItem of getItem.data) {
+                mapGetForMatchingTrades(setMap, bitItem, matchBitIds, newTrades)
+            }
+        }
+    }
+    if (setMap.size > 0) {
+        matchingToReamingBits(eventId, setMap, getOption, limitMap, matchBitIds, newTrades)
+    }
+}
+
 this.matchBidsHandler()
 
 
-function createTreads(newTrades) {
+async function createTreads(newTrades) {
+    console.log("create treads enter : ", dateFormatModule.getByFormat())
     tradesModel.insertMany(newTrades)
 
 }
 
+async function updateBidsByIds(matchBitIds) {
+    console.log("enter in updateBidsByIds : ", dateFormatModule.getByFormat())
+    bidsDb.updateMatchIdsStatus(matchBitIds)
+}
+
 function mapSetForUpdateBit(inputMap, bitItem) {
-        const inputMapKey = bitItem.amount;
-        let setData = [];
-        const isMapDataExist = inputMap.get(inputMapKey);
-        if (isMapDataExist) {
-            setData = isMapDataExist
-        }
-        setData.push(bitItem)
-        inputMap.set(inputMapKey, setData)
+    const inputMapKey = bitItem.amount;
+    let setData = [];
+    const isMapDataExist = inputMap.get(inputMapKey);
+    if (isMapDataExist) {
+        setData = isMapDataExist
+    }
+    setData.push(bitItem)
+    inputMap.set(inputMapKey, setData)
 }
 
 function mapOperationOfUpdateMatchBit(bitItem, getMap, setMap, matchBitIds, newTrades, limitMap) {

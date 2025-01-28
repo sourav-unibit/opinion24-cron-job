@@ -13,9 +13,9 @@ const db = new mongoose.Schema({
         default: dbConstant.mongodb.treads.status.live,
         index:true
     },
-    bits: [
+    bids: [
         {
-            bitId: {
+            bidId: {
                 type: Number,
                 require: true,
                 unique:true
@@ -25,7 +25,7 @@ const db = new mongoose.Schema({
                 require: true
             },
             userId: {
-                type: String,
+                type: Number,
                 require: true
             },
             userName: {
